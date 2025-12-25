@@ -14,7 +14,7 @@ def find_path_command(paths: list[str], command: str) -> str | None:
 
 def main():
     builtin_commands = ['exit', 'echo', 'type']
-    input_sh = {'command': '', 'args': ''}
+    input_sh = {'command': str, 'args': list[str]}
     path = list(
         filterfalse(lambda p: '/mnt' in p or '/home' in p, os.get_exec_path())
     )
@@ -25,21 +25,21 @@ def main():
 
         input_aux = input().split(' ')
         input_sh['command'] = input_aux[0]
-        input_sh['args'] = ' '.join(input_aux[1:])
+        input_sh['args'] = input_aux[1:]
         is_builtin = False
 
         if input_sh['command'] == 'exit':
             return
         elif input_sh['command'] == 'echo':
-            print(input_sh['args'])
+            print(' '.join(input_sh['args']))
         elif input_sh['command'] == 'type':
-            print(f'{input_sh['args']}', end='')
+            print(f'{input_sh['args'][0]}', end='')
 
-            if input_sh['args'] in builtin_commands:
+            if input_sh['args'][0] in builtin_commands:
                 is_builtin = True
                 print(' is a shell builtin')
             else:
-                path_command = find_path_command(path, input_sh['args'])
+                path_command = find_path_command(path, input_sh['args'][0])
                 if path_command and os.path.exists(path_command) and os.access(path_command, os.X_OK):
                     is_builtin = True
                     print(f' is {path_command}')
@@ -48,7 +48,7 @@ def main():
         elif find_path_command(path, input_sh['command']):
             command = [input_sh['command']]
             if input_sh['args']:
-                command.append(input_sh['args'])
+                command += input_sh['args']
             result = subprocess.run(command, capture_output=True).stdout
             print(result.decode(), end='')
         else:
