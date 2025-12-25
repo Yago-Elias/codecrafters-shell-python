@@ -13,7 +13,7 @@ def find_path_command(paths: list[str], command: str) -> str | None:
 
 
 def main():
-    builtin_commands = ['exit', 'echo', 'type']
+    builtin_commands = ['exit', 'echo', 'type', 'pwd']
     input_sh = {'command': str, 'args': list[str]}
     path = list(
         filterfalse(lambda p: '/mnt' in p or '/home' in p, os.get_exec_path())
@@ -51,6 +51,8 @@ def main():
                 command += input_sh['args']
             result = subprocess.run(command, capture_output=True).stdout
             print(result.decode(), end='')
+        elif input_sh['command'] == 'pwd':
+            print(os.getcwd())
         else:
             print(f'{input_sh['command']}: command not found')
 
