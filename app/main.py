@@ -53,7 +53,10 @@ def handler(input: dict[str, Any]) -> Any | None:
 
 
 def f_cd(input: dict[str, Any]):
-    pass
+    if os.path.exists(input['args'][0]):
+        os.chdir(input['args'][0])
+    else:
+        print(f'cd: {input['args'][0]}: No such file or directory')
 
 
 builtin_commands = {
