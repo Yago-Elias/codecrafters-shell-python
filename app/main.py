@@ -53,7 +53,9 @@ def handler(input: dict[str, Any]) -> Any | None:
 
 
 def f_cd(input: dict[str, Any]):
-    if os.path.exists(input['args'][0]):
+    if '~' in input['args'] and (home := os.getenv('HOME')):
+        os.chdir(home)
+    elif os.path.exists(input['args'][0]):
         os.chdir(input['args'][0])
     else:
         print(f'cd: {input['args'][0]}: No such file or directory')
