@@ -13,52 +13,91 @@ def find_path_command(paths: list[str], command: str) -> str | None:
     return None
 
 
-def f_echo(input: dict[str, Any]) -> None:
+def f_echo(input: dict[str, str]) -> None:
     print(' '.join(input['args']))
 
 
-def f_type(input: dict[str, Any]) -> None:
-    is_builtin = False
-    print(f'{input['args'][0]}', end='')
+def f_type(input: dict[str, str]) -> None:
+    if not input['args']: print()
 
-    if input['args'][0] in list(builtin_commands.keys()) + ['exit']:
-        is_builtin = True
-        print(' is a shell builtin')
-    else:
-        path_command = find_path_command(path, input['args'][0])
-        if path_command and os.path.exists(path_command) and os.access(path_command, os.X_OK):
-            is_builtin = True
-            print(f' is {path_command}')
-    if not is_builtin:
-        print(': not found')
+    for arg in input['args']:
+        found = False
+        print(f'{arg}', end='')
+
+        if arg in list(builtin_commands.keys()) + ['exit']:
+            found = True
+            print(' is a shell builtin')
+        else:
+            path_command = find_path_command(path, arg)
+            if path_command and os.path.exists(path_command) and os.access(path_command, os.X_OK):
+                found = True
+                print(f' is {path_command}')
+        if not found:
+            print(': not found')
 
 
-def f_pwd(input: dict[str, Any]) -> None:
+def f_pwd(input: dict[str, str]) -> None:
     print(os.getcwd())
 
 
-def f_command(input: dict[str, Any]) -> None:
+def f_command(input: dict[str, str]) -> None:
     command = [input['command']]
     if input['args']:
         command += input['args']
-    result = subprocess.run(command, capture_output=True).stdout
-    print(result.decode(), end='')
+    result = subprocess.run(command, capture_output=True)
+    if result.stdout:
+        print(result.stdout.decode(), end='')
+    else:
+        print(result.stderr.decode(), end='')
 
 
-def handler(input: dict[str, Any]) -> Any | None:
+
+def f_cd(input: dict[str, str]) -> None:
+    if input['args']:
+        path = input['args'][0]
+        if '~' == path and (home := os.getenv('HOME')):
+            os.chdir(home)
+        elif os.path.exists(path):
+            os.chdir(path)
+        else:
+            print(f'cd: {path}: No such file or directory')
+
+
+def input_sh() -> dict[str, str | list[str]]:
+    input_aux = input().strip(' ')
+    line_command: dict[str, str | list[str]] = {'command': '', 'args': []}
+
+    ind = input_aux.find(' ')
+    line_command['command'] = input_aux[:ind] if ind != -1 else input_aux
+    line_command['args'] = handler_args(input_aux[ind+1:]) if ind != -1 else []
+    
+    return line_command
+
+
+def handler_args(args: str) -> list[str]:
+    arg = ''
+    list_arg = []
+    simple_quote = False
+    for c in args:
+        if c.isspace() and not simple_quote:
+            if arg:
+                list_arg.append(arg)
+                arg = ''
+            continue
+        elif c == "'":
+            simple_quote = not simple_quote
+            continue
+        arg += c
+    
+    list_arg.append(arg)
+    return list_arg
+
+
+def handler(input: dict[str, str | list[str]]) -> Any | None:
     command = builtin_commands.get(input['command'])
     if command is None and find_path_command(path, input['command']):
         command = builtin_commands.get('external')
     return command
-
-
-def f_cd(input: dict[str, Any]):
-    if '~' in input['args'] and (home := os.getenv('HOME')):
-        os.chdir(home)
-    elif os.path.exists(input['args'][0]):
-        os.chdir(input['args'][0])
-    else:
-        print(f'cd: {input['args'][0]}: No such file or directory')
 
 
 builtin_commands = {
@@ -75,22 +114,17 @@ path = list(
 
 
 def main():
-    input_sh = {'command': str, 'args': list[str]}
-    is_builtin = False
+    shell_command = {'command': str, 'args': list[str]}
     while (True):
         sys.stdout.write("$ ")
-
-        input_aux = input().split(' ')
-        input_sh['command'] = input_aux[0]
-        input_sh['args'] = input_aux[1:]
+        shell_command = input_sh()
         
-        if input_sh['command'] == 'exit':
+        if shell_command['command'] == 'exit':
             exit()
-        
-        if exec_command := handler(input_sh):
-            exec_command(input_sh)
+        if exec_command := handler(shell_command):
+            exec_command(shell_command)
         else:
-            print(f'{input_sh['command']}: command not found')
+            print(f'{shell_command['command']}: command not found')
 
 if __name__ == "__main__":
     main()
