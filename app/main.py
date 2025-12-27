@@ -3,6 +3,9 @@ import os
 import subprocess
 from typing import Any
 from itertools import filterfalse
+from collections import namedtuple
+
+InputSh = namedtuple('InputSh', ['command', 'args'])
 
 
 def find_path_command(paths: list[str], command: str) -> str | None:
@@ -13,14 +16,14 @@ def find_path_command(paths: list[str], command: str) -> str | None:
     return None
 
 
-def f_echo(input: dict[str, str]) -> None:
-    print(' '.join(input['args']))
+def f_echo(input: InputSh) -> None:
+    print(' '.join(input.args))
 
 
-def f_type(input: dict[str, str]) -> None:
-    if not input['args']: print()
+def f_type(input: InputSh) -> None:
+    if not input.args: print()
 
-    for arg in input['args']:
+    for arg in input.args:
         found = False
         print(f'{arg}', end='')
 
@@ -36,14 +39,14 @@ def f_type(input: dict[str, str]) -> None:
             print(': not found')
 
 
-def f_pwd(input: dict[str, str]) -> None:
+def f_pwd(input: InputSh) -> None:
     print(os.getcwd())
 
 
-def f_command(input: dict[str, str]) -> None:
-    command = [input['command']]
-    if input['args']:
-        command += input['args']
+def f_command(input: InputSh) -> None:
+    command = [input.command]
+    if input.args:
+        command += input.args
     result = subprocess.run(command, capture_output=True)
     if result.stdout:
         print(result.stdout.decode(), end='')
@@ -51,10 +54,9 @@ def f_command(input: dict[str, str]) -> None:
         print(result.stderr.decode(), end='')
 
 
-
-def f_cd(input: dict[str, str]) -> None:
-    if input['args']:
-        path = input['args'][0]
+def f_cd(input: InputSh) -> None:
+    if input.args:
+        path = input.args[0]
         if '~' == path and (home := os.getenv('HOME')):
             os.chdir(home)
         elif os.path.exists(path):
@@ -63,39 +65,50 @@ def f_cd(input: dict[str, str]) -> None:
             print(f'cd: {path}: No such file or directory')
 
 
-def input_sh() -> dict[str, str | list[str]]:
+def input_sh() -> InputSh:
     input_aux = input().strip(' ')
-    line_command: dict[str, str | list[str]] = {'command': '', 'args': []}
 
     ind = input_aux.find(' ')
-    line_command['command'] = input_aux[:ind] if ind != -1 else input_aux
-    line_command['args'] = handler_args(input_aux[ind+1:]) if ind != -1 else []
+    command = input_aux[:ind] if ind != -1 else input_aux
+    args  = handler_args(input_aux[ind+1:]) if ind != -1 else []
     
-    return line_command
+    return InputSh(command, args)
 
 
 def handler_args(args: str) -> list[str]:
     arg = ''
     list_arg = []
-    simple_quote = False
+    single_quotes = double_quotes = False
+    
     for c in args:
-        if c.isspace() and not simple_quote:
-            if arg:
-                list_arg.append(arg)
-                arg = ''
-            continue
-        elif c == "'":
-            simple_quote = not simple_quote
-            continue
+        if not double_quotes:
+            if c.isspace() and not single_quotes:
+                if arg:
+                    list_arg.append(arg)
+                    arg = ''
+                continue
+            elif c == "'":
+                single_quotes = not single_quotes
+                continue
+
+        if not single_quotes:
+            if c.isspace() and not double_quotes:
+                if arg:
+                    list_arg.append(arg)
+                    arg = ''
+                continue
+            elif c == '"':
+                double_quotes = not double_quotes
+                continue
         arg += c
     
     list_arg.append(arg)
     return list_arg
 
 
-def handler(input: dict[str, str | list[str]]) -> Any | None:
-    command = builtin_commands.get(input['command'])
-    if command is None and find_path_command(path, input['command']):
+def handler(input: InputSh) -> Any | None:
+    command = builtin_commands.get(input.command)
+    if command is None and find_path_command(path, input.command):
         command = builtin_commands.get('external')
     return command
 
@@ -114,17 +127,16 @@ path = list(
 
 
 def main():
-    shell_command = {'command': str, 'args': list[str]}
     while (True):
         sys.stdout.write("$ ")
         shell_command = input_sh()
         
-        if shell_command['command'] == 'exit':
+        if shell_command.command == 'exit':
             exit()
         if exec_command := handler(shell_command):
             exec_command(shell_command)
         else:
-            print(f'{shell_command['command']}: command not found')
+            print(f'{shell_command.command}: command not found')
 
 if __name__ == "__main__":
     main()
