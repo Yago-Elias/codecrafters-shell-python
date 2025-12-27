@@ -79,8 +79,12 @@ def handler_args(args: str) -> list[str]:
     arg = ''
     list_arg = []
     single_quotes = double_quotes = False
-    
-    for c in args:
+    char = iter(args)
+
+    for c in char:
+        if c == "\\" and not (single_quotes or double_quotes):
+            arg += next(char)
+            continue
         if not double_quotes:
             if c.isspace() and not single_quotes:
                 if arg:
@@ -107,6 +111,9 @@ def handler_args(args: str) -> list[str]:
 
 
 def handler(input: InputSh) -> Any | None:
+    if input.command == 'exit':
+        exit()
+
     command = builtin_commands.get(input.command)
     if command is None and find_path_command(path, input.command):
         command = builtin_commands.get('external')
@@ -130,9 +137,9 @@ def main():
     while (True):
         sys.stdout.write("$ ")
         shell_command = input_sh()
-        
-        if shell_command.command == 'exit':
-            exit()
+
+        if shell_command.command == '':
+            continue
         if exec_command := handler(shell_command):
             exec_command(shell_command)
         else:
