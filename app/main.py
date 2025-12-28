@@ -66,16 +66,11 @@ def f_cd(input: InputSh) -> None:
 
 
 def input_sh() -> InputSh:
-    input_aux = input().strip(' ')
-
-    ind = input_aux.find(' ')
-    command = input_aux[:ind] if ind != -1 else input_aux
-    args  = handler_args(input_aux[ind+1:]) if ind != -1 else []
-    
-    return InputSh(command, args)
+    command = input_handler(input().strip(' '))
+    return InputSh(command[0], command[1:])
 
 
-def handler_args(args: str) -> list[str]:
+def input_handler(args: str) -> list[str]:
     arg = ''
     list_arg = []
     single_quotes = double_quotes = False
@@ -118,7 +113,7 @@ def handler_args(args: str) -> list[str]:
     return list_arg
 
 
-def handler(input: InputSh) -> Any | None:
+def command_handler(input: InputSh) -> Any | None:
     if input.command == 'exit':
         exit()
 
@@ -148,7 +143,7 @@ def main():
 
         if shell_command.command == '':
             continue
-        if exec_command := handler(shell_command):
+        if exec_command := command_handler(shell_command):
             exec_command(shell_command)
         else:
             print(f'{shell_command.command}: command not found')
