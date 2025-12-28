@@ -5,7 +5,7 @@ from typing import Any
 from itertools import filterfalse
 from collections import namedtuple
 
-InputSh = namedtuple('InputSh', ['command', 'args'])
+InputSh = namedtuple('InputSh', ['command', 'args', 'redirect', 'file_name'])
 
 
 def find_path_command(paths: list[str], command: str) -> str | None:
@@ -16,45 +16,48 @@ def find_path_command(paths: list[str], command: str) -> str | None:
     return None
 
 
-def f_echo(input: InputSh) -> None:
-    print(' '.join(input.args))
+def f_echo(input: InputSh) -> bytes:
+    return bytes((' '.join(input.args) + '\n'), 'utf-8')
 
 
-def f_type(input: InputSh) -> None:
-    if not input.args: print()
+def f_type(input: InputSh) -> bytes:
+    output = b''
+    if not input.args: return b''
 
     for arg in input.args:
         found = False
-        print(f'{arg}', end='')
+        output += bytes(f'{arg}', 'utf-8')
+        # print(f'{arg}', end='')
 
         if arg in list(builtin_commands.keys()) + ['exit']:
             found = True
-            print(' is a shell builtin')
+            output += bytes(' is a shell builtin\n', 'utf-8')
+            # print(' is a shell builtin')
         else:
             path_command = find_path_command(path, arg)
             if path_command and os.path.exists(path_command) and os.access(path_command, os.X_OK):
                 found = True
-                print(f' is {path_command}')
+                output += bytes(f' is {path_command}\n', 'utf-8')
+                # print(f' is {path_command}')
         if not found:
-            print(': not found')
+            output += bytes(': not found\n', 'utf-8')
+            # print(': not found')
+    return output
 
 
-def f_pwd(input: InputSh) -> None:
-    print(os.getcwd())
+def f_pwd(input: InputSh) -> bytes:
+    return bytes(os.getcwd(), 'utf-8')
 
 
-def f_command(input: InputSh) -> None:
+def f_command(input: InputSh) -> bytes:
     command = [input.command]
     if input.args:
         command += input.args
     result = subprocess.run(command, capture_output=True)
-    if result.stdout:
-        print(result.stdout.decode(), end='')
-    else:
-        print(result.stderr.decode(), end='')
+    return result.stdout if result.stdout else result.stderr
 
 
-def f_cd(input: InputSh) -> None:
+def f_cd(input: InputSh) -> bytes:
     if input.args:
         path = input.args[0]
         if '~' == path and (home := os.getenv('HOME')):
@@ -62,12 +65,26 @@ def f_cd(input: InputSh) -> None:
         elif os.path.exists(path):
             os.chdir(path)
         else:
-            print(f'cd: {path}: No such file or directory')
+            return bytes(f'cd: {path}: No such file or directory', 'utf-8')
+    return b''
 
 
 def input_sh() -> InputSh:
-    command = input_handler(input().strip(' '))
-    return InputSh(command[0], command[1:])
+    line_command = input_handler(input().strip(' '))
+    command = line_command[0]
+    args = line_command[1:]
+    redirect = False
+    file_name = ''
+    args_aux = []
+
+    for ind, arg in enumerate(args):
+        if '>' == arg or '1>' == arg:
+            args_aux = args[1:ind]
+            redirect = True
+            file_name = args[ind+1]
+    args = args_aux if args_aux else args
+
+    return InputSh(command, args, redirect, file_name)
 
 
 def input_handler(args: str) -> list[str]:
@@ -123,6 +140,25 @@ def command_handler(input: InputSh) -> Any | None:
     return command
 
 
+def run() -> None:
+    while (True):
+        sys.stdout.write("$ ")
+        shell_command = input_sh()
+
+        if shell_command.command == '':
+            continue
+        if exec_command := command_handler(shell_command):
+            output: bytes = exec_command(shell_command)
+
+            if shell_command.redirect:
+                with open(shell_command.file_name, 'w', encoding='utf-8') as file:
+                    file.write(output.decode())
+            else:
+                print(output.decode(), end='')
+        else:
+            print(f'{shell_command.command}: command not found')
+
+
 builtin_commands = {
     'echo': f_echo,
     'type': f_type,
@@ -137,16 +173,7 @@ path = list(
 
 
 def main():
-    while (True):
-        sys.stdout.write("$ ")
-        shell_command = input_sh()
-
-        if shell_command.command == '':
-            continue
-        if exec_command := command_handler(shell_command):
-            exec_command(shell_command)
-        else:
-            print(f'{shell_command.command}: command not found')
+    run()
 
 if __name__ == "__main__":
     main()
