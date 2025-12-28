@@ -82,28 +82,36 @@ def handler_args(args: str) -> list[str]:
     char = iter(args)
 
     for c in char:
-        if c == "\\" and not (single_quotes or double_quotes):
+        # escapa o caractere fora de aspas simples e aspas duplas
+        if c == "\\" and single_quotes == double_quotes == False:
             arg += next(char)
             continue
+        
+        # tratamento dos argumentos quando não há aspas simples e aspas duplas
+        if c.isspace() and not (single_quotes or double_quotes):
+            if arg:
+                list_arg.append(arg)
+                arg = ''
+            continue
+
+        # trata o caractere se estiver dentro ou fora de aspas SIMPLES
         if not double_quotes:
-            if c.isspace() and not single_quotes:
-                if arg:
-                    list_arg.append(arg)
-                    arg = ''
-                continue
-            elif c == "'":
+            if c == "'":
                 single_quotes = not single_quotes
                 continue
 
+        # trata o caractere se estiver dentro ou fora de aspas DUPLAS
         if not single_quotes:
-            if c.isspace() and not double_quotes:
-                if arg:
-                    list_arg.append(arg)
-                    arg = ''
-                continue
-            elif c == '"':
+            if c == '"':
                 double_quotes = not double_quotes
                 continue
+            elif c == '\\' and double_quotes:
+                c = next(char)
+                if c in ['\\', '"']:
+                    arg += c
+                    continue
+                else:
+                    arg += '\\'
         arg += c
     
     list_arg.append(arg)
