@@ -7,6 +7,8 @@ from collections import namedtuple
 
 InputShell = namedtuple('InputShell', ['command', 'args', 'redirect', 'file_name'])
 OutputShell = namedtuple('OutputShell', ['stdout', 'stderr', 'returncode'], defaults=[b'', b'', 0])
+STDOUT = 1
+STDERR = 2
 
 
 def find_path_command(paths: list[str], command: str) -> str | None:
@@ -70,15 +72,16 @@ def input_shell() -> InputShell:
     line_command = input_handler(input().strip(' '))
     command = line_command[0]
     args = line_command[1:]
-    redirect = False
+    redirect = None
     file_name = ''
     args_aux = []
 
     for ind, arg in enumerate(args):
-        if '>' == arg or '1>' == arg:
+        if arg in ['>', '1>', '2>']:
             args_aux = args[:ind]
-            redirect = True
+            redirect = STDERR if arg == '2>' else STDOUT
             file_name = args[ind+1]
+            break
     args = args_aux if args_aux else args
 
     return InputShell(command, args, redirect, file_name)
@@ -146,14 +149,21 @@ def run() -> None:
             continue
         if exec_command := command_handler(input_sh):
             output_sh: OutputShell = exec_command(input_sh)
+            output: bytes = output_sh.stdout + output_sh.stderr
 
             if input_sh.redirect:
                 with open(input_sh.file_name, 'w', encoding='utf-8') as file:
-                    file.write(output_sh.stdout.decode())
-                    if output_sh.returncode:
-                        print(output_sh.stderr.decode(), end='')
-            else:
-                print(output_sh.stdout.decode() + output_sh.stderr.decode(), end='')
+                    redirect_output = output_sh.stdout
+                    if input_sh.redirect == STDERR:
+                        redirect_output = output_sh.stderr
+                    
+                    file.write(redirect_output.decode())
+
+                if output_sh.returncode and input_sh.redirect == STDERR:
+                    output = output_sh.stdout
+                elif input_sh.redirect == STDOUT:
+                    output = output_sh.stderr
+            print(output.decode(), end='')
         else:
             print(f'{input_sh.command}: command not found')
 
