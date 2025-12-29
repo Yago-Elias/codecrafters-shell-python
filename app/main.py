@@ -5,7 +5,7 @@ from typing import Any
 from itertools import filterfalse
 from collections import namedtuple
 
-InputShell = namedtuple('InputShell', ['command', 'args', 'redirect', 'file_name'])
+InputShell = namedtuple('InputShell', ['command', 'args', 'redirect', 'file_name', 'opening_mode'])
 OutputShell = namedtuple('OutputShell', ['stdout', 'stderr', 'returncode'], defaults=[b'', b'', 0])
 STDOUT = 1
 STDERR = 2
@@ -74,17 +74,19 @@ def input_shell() -> InputShell:
     args = line_command[1:]
     redirect = None
     file_name = ''
+    opening_mode = ''
     args_aux = []
 
     for ind, arg in enumerate(args):
-        if arg in ['>', '1>', '2>']:
+        if '>' in arg:
             args_aux = args[:ind]
-            redirect = STDERR if arg == '2>' else STDOUT
+            redirect = STDERR if arg in ('2>', '2>>') else STDOUT
             file_name = args[ind+1]
+            opening_mode = 'w' if arg.count('>') == 1 else 'a'
             break
     args = args_aux if args_aux else args
 
-    return InputShell(command, args, redirect, file_name)
+    return InputShell(command, args, redirect, file_name, opening_mode)
 
 
 def input_handler(args: str) -> list[str]:
@@ -152,7 +154,7 @@ def run() -> None:
             output: bytes = output_sh.stdout + output_sh.stderr
 
             if input_sh.redirect:
-                with open(input_sh.file_name, 'w', encoding='utf-8') as file:
+                with open(input_sh.file_name, input_sh.opening_mode, encoding='utf-8') as file:
                     redirect_output = output_sh.stdout
                     if input_sh.redirect == STDERR:
                         redirect_output = output_sh.stderr
