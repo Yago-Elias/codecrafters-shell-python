@@ -17,6 +17,32 @@ def find_path_command(paths: list[str], command: str) -> str | None:
     return None
 
 
+def completer(text, state):
+    hit = [cmd for cmd in _builtins_command_ if cmd.startswith(text)]
+    if not hit:
+        hit = [cmd for cmd in _external_command_ if cmd.startswith(text)]
+
+    try:
+        return hit[state] + ' '
+    except IndexError:
+        return None
+
+def list_commands_match(substituition, matches, longest) -> None:
+    buffer = readline.get_line_buffer()
+    print()
+    print(' '.join(matches))
+    sys.stdout.write('\033[K')
+    sys.stdout.write(f'$ {buffer}')
+    sys.stdout.flush()
+    readline.redisplay()
+
+
+def get_commands_in_path(path: str) -> list[str]:
+    if os.path.exists(path):
+        return [cmd for cmd in os.listdir(path) if os.access(os.path.join(path, cmd), os.X_OK)]
+    return []
+
+
 def f_echo(input: InputShell) -> OutputShell:
     return OutputShell(bytes((' '.join(input.args) + '\n'), 'utf-8')) 
 
@@ -33,7 +59,7 @@ def f_type(input: InputShell) -> OutputShell:
             found = True
             output += bytes(' is a shell builtin\n', 'utf-8')
         else:
-            path_command = find_path_command(path, arg)
+            path_command = find_path_command(_path_, arg)
             if path_command and os.path.exists(path_command) and os.access(path_command, os.X_OK):
                 found = True
                 output += bytes(f' is {path_command}\n', 'utf-8')
@@ -135,7 +161,7 @@ def command_handler(input: InputShell) -> Any | None:
         exit()
 
     command = _commands_.get(input.command)
-    if command is None and find_path_command(path, input.command):
+    if command is None and find_path_command(_path_, input.command):
         command = _commands_.get('external')
     return command
 
@@ -143,7 +169,10 @@ def command_handler(input: InputShell) -> Any | None:
 def run() -> None:
     while (True):
         # sys.stdout.write("$ ")
-        input_sh = input_shell()
+        try:
+            input_sh = input_shell()
+        except KeyboardInterrupt:
+            break
 
         if input_sh.command == '':
             continue
@@ -168,17 +197,6 @@ def run() -> None:
             print(f'{input_sh.command}: command not found')
 
 
-def completer(text, state):
-    hit = [c + ' ' for c in _builtins_command_ if c.startswith(text)]
-
-    try:
-        return hit[state]
-    except IndexError:
-        return None
-
-
-_builtins_command_ = ['echo', 'type', 'pwd', 'exit', 'cd']
-
 _commands_ = {
     'echo': f_echo,
     'type': f_type,
@@ -186,15 +204,17 @@ _commands_ = {
     'external': f_command,
     'cd': f_cd,
 }
-
-path = list(
+_path_ = list(
     filterfalse(lambda p: '/mnt' in p or '/home' in p, os.get_exec_path())
 )
+_builtins_command_ = ['echo', 'type', 'pwd', 'exit', 'cd']
+_external_command_ = {cmd for p in _path_ for cmd in get_commands_in_path(p)}
 
 
 def main():
     readline.set_completer(completer)
-    readline.set_completer_delims(' \t\n')
+    readline.set_completion_display_matches_hook(list_commands_match)
+    readline.set_completer_delims('\t')
     readline.parse_and_bind('tab: complete')
     run()
 
