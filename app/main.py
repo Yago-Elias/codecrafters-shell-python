@@ -1,6 +1,4 @@
-import sys
-import os
-import subprocess
+import sys, os, subprocess, readline
 from typing import Any
 from itertools import filterfalse
 from collections import namedtuple
@@ -31,7 +29,7 @@ def f_type(input: InputShell) -> OutputShell:
         found = False
         output += bytes(f'{arg}', 'utf-8')
 
-        if arg in list(builtin_commands.keys()) + ['exit']:
+        if arg in list(_commands_.keys()) + ['exit']:
             found = True
             output += bytes(' is a shell builtin\n', 'utf-8')
         else:
@@ -69,7 +67,7 @@ def f_cd(input: InputShell) -> OutputShell:
 
 
 def input_shell() -> InputShell:
-    line_command = input_handler(input().strip(' '))
+    line_command = input_handler(input('$ ').strip(' '))
     command = line_command[0]
     args = line_command[1:]
     redirect = None
@@ -136,15 +134,15 @@ def command_handler(input: InputShell) -> Any | None:
     if input.command == 'exit':
         exit()
 
-    command = builtin_commands.get(input.command)
+    command = _commands_.get(input.command)
     if command is None and find_path_command(path, input.command):
-        command = builtin_commands.get('external')
+        command = _commands_.get('external')
     return command
 
 
 def run() -> None:
     while (True):
-        sys.stdout.write("$ ")
+        # sys.stdout.write("$ ")
         input_sh = input_shell()
 
         if input_sh.command == '':
@@ -170,7 +168,18 @@ def run() -> None:
             print(f'{input_sh.command}: command not found')
 
 
-builtin_commands = {
+def completer(text, state):
+    hit = [c + ' ' for c in _builtins_command_ if c.startswith(text)]
+
+    try:
+        return hit[state]
+    except IndexError:
+        return None
+
+
+_builtins_command_ = ['echo', 'type', 'pwd', 'exit', 'cd']
+
+_commands_ = {
     'echo': f_echo,
     'type': f_type,
     'pwd': f_pwd,
@@ -184,6 +193,9 @@ path = list(
 
 
 def main():
+    readline.set_completer(completer)
+    readline.set_completer_delims(' \t\n')
+    readline.parse_and_bind('tab: complete')
     run()
 
 if __name__ == "__main__":
