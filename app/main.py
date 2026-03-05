@@ -1,12 +1,24 @@
-import sys, os, subprocess, readline
-from typing import Any
+import sys, os, subprocess, readline, select
+from typing import Any, IO
 from itertools import filterfalse
 from collections import namedtuple
 
-InputShell = namedtuple('InputShell', ['command', 'args', 'redirect', 'file_name', 'opening_mode'])
-OutputShell = namedtuple('OutputShell', ['stdout', 'stderr', 'returncode'], defaults=[b'', b'', 0])
+InputShell = namedtuple('InputShell', [
+    'command', 
+    'args', 
+    'file_name', 
+    'opening_mode' 
+    ], 
+    defaults=['', None, '', ''])
+OutputShell = namedtuple('OutputShell', [
+    'stdout', 
+    'stderr', 
+    'returncode' 
+    ], 
+    defaults=[b'', b'', 0])
 STDOUT = 1
 STDERR = 2
+PIPE = 3
 
 
 def find_path_command(paths: list[str], command: str) -> str | None:
@@ -26,6 +38,7 @@ def completer(text, state):
         return hit[state] + ' '
     except IndexError:
         return None
+
 
 def list_commands_match(substituition, matches, longest) -> None:
     buffer = readline.get_line_buffer()
@@ -92,25 +105,44 @@ def f_cd(input: InputShell) -> OutputShell:
     return OutputShell()
 
 
-def input_shell() -> InputShell:
+def input_shell() -> tuple[int | None, list[InputShell]]:
     line_command = input_handler(input('$ ').strip(' '))
-    command = line_command[0]
-    args = line_command[1:]
+
+    if not line_command or line_command[0] == '':
+        return (None, [InputShell('', [])])
+    
+    input_sh = []
     redirect = None
-    file_name = ''
-    opening_mode = ''
-    args_aux = []
+    cmd_ind = 0
 
-    for ind, arg in enumerate(args):
-        if '>' in arg:
-            args_aux = args[:ind]
+    for ind, arg in enumerate(line_command):
+        # Detecta pipe
+        if '|' == arg:
+            command = line_command[cmd_ind]
+            args = line_command[cmd_ind+1:ind]
+            input_sh.append(InputShell(command, args))
+            redirect = PIPE
+            cmd_ind = ind + 1
+        # Detecta redirecionamento
+        elif arg in ('>', '>>', '1>', '1>>', '2>', '2>>'):
+            command = line_command[cmd_ind]
+            args = line_command[cmd_ind+1:ind]
             redirect = STDERR if arg in ('2>', '2>>') else STDOUT
-            file_name = args[ind+1]
+            if ind + 1 > len(line_command):
+                print('syntex error: expected filename')
+                return (None, [InputShell('', [])])
+            file_name = line_command[ind+1]
             opening_mode = 'w' if arg.count('>') == 1 else 'a'
-            break
-    args = args_aux if args_aux else args
-
-    return InputShell(command, args, redirect, file_name, opening_mode)
+            input_sh.append(InputShell(command, args, file_name, opening_mode))
+            return (redirect, input_sh)
+    
+    # Adiciona o único ou último comando
+    if cmd_ind < len(line_command):
+        command = line_command[cmd_ind]
+        args = line_command[cmd_ind+1:]
+        input_sh.append(InputShell(command, args))
+    
+    return (redirect, input_sh)
 
 
 def input_handler(args: str) -> list[str]:
@@ -166,35 +198,78 @@ def command_handler(input: InputShell) -> Any | None:
     return command
 
 
+def pipe(*commands: InputShell) -> None:
+    processes: list[subprocess.Popen] = []
+    prev_stdout = None
+    for i, cmd in enumerate(commands):
+        command = [cmd.command] + cmd.args[:]
+        stdout_pipe = None if i == len(commands) - 1 else subprocess.PIPE
+        proc = subprocess.Popen(
+            command,
+            stdin=prev_stdout,
+            stdout=stdout_pipe,
+            stderr=subprocess.PIPE
+        )
+        if prev_stdout:
+            prev_stdout.close()
+        
+        prev_stdout = proc.stdout
+        processes.append(proc)
+
+    proc = processes[-1]
+    fds = [file for file in [proc.stdout, proc.stderr] if file]
+    ready_read: list[IO]
+    try:
+        while fds:
+            ready_read, _, _ = select.select(fds, [], [])
+            for fd in ready_read:
+                while (out := fd.read(4096)):
+                    sys.stdout.buffer.write(out)
+
+                sys.stdout.buffer.flush()
+                fd.close()
+                fds.remove(fd)
+    except KeyboardInterrupt:
+        sys.stdout.write('\n')
+        for proc in processes:
+            proc.terminate()
+    finally:
+        for proc in processes:
+            proc.wait()
+
+
 def run() -> None:
     while (True):
-        # sys.stdout.write("$ ")
         try:
             input_sh = input_shell()
         except KeyboardInterrupt:
             break
+        
+        _redirect, _sh = input_sh
 
-        if input_sh.command == '':
-            continue
-        if exec_command := command_handler(input_sh):
-            output_sh: OutputShell = exec_command(input_sh)
-            output: bytes = output_sh.stdout + output_sh.stderr
+        if _redirect == PIPE:
+            pipe(*_sh)
+        elif _redirect in (STDOUT, STDERR):
+            if (exec_command := command_handler(_sh[0])) == None:
+                print(f'{_sh[0].command}: command not found')
+                continue
 
-            if input_sh.redirect:
-                with open(input_sh.file_name, input_sh.opening_mode, encoding='utf-8') as file:
-                    redirect_output = output_sh.stdout
-                    if input_sh.redirect == STDERR:
-                        redirect_output = output_sh.stderr
-                    
-                    file.write(redirect_output.decode())
+            output: OutputShell = exec_command(_sh[0])
 
-                if output_sh.returncode and input_sh.redirect == STDERR:
-                    output = output_sh.stdout
-                elif input_sh.redirect == STDOUT:
-                    output = output_sh.stderr
-            print(output.decode(), end='')
+            with open(_sh[0].file_name, _sh[0].opening_mode, encoding='utf-8') as file:
+                to_redirect = output.stderr if _redirect == STDERR else output.stdout
+                file.write(to_redirect.decode())
+
+            if _redirect == STDERR:
+                print(output.stdout.decode(), end='')
+            else:
+                print(output.stderr.decode(), end='')
         else:
-            print(f'{input_sh.command}: command not found')
+            if (exec_command := command_handler(_sh[0])) == None:
+                print(f'{_sh[0].command}: command not found')
+                continue
+            output: OutputShell = exec_command(_sh[0])
+            print((output.stdout + output.stderr).decode(), end='')
 
 
 _commands_ = {
