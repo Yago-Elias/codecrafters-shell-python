@@ -107,7 +107,7 @@ def input_shell() -> tuple[int | None, list[InputShell]]:
 
 
 def input_handler(args: str) -> list[str]:
-    arg = ''
+    arg = []
     list_arg = []
     single_quotes = double_quotes = False
     char = iter(args)
@@ -115,14 +115,14 @@ def input_handler(args: str) -> list[str]:
     for c in char:
         # escapa o caractere fora de aspas simples e aspas duplas
         if c == "\\" and single_quotes == double_quotes == False:
-            arg += next(char)
+            arg.append(next(char))
             continue
         
         # tratamento dos argumentos quando não há aspas simples e aspas duplas
         if c.isspace() and not (single_quotes or double_quotes):
             if arg:
-                list_arg.append(arg)
-                arg = ''
+                list_arg.append(''.join(arg))
+                arg.clear()
             continue
 
         # trata o caractere se estiver dentro ou fora de aspas SIMPLES
@@ -139,13 +139,13 @@ def input_handler(args: str) -> list[str]:
             elif c == '\\' and double_quotes:
                 c = next(char)
                 if c in ['\\', '"']:
-                    arg += c
+                    arg.append(c)
                     continue
                 else:
-                    arg += '\\'
-        arg += c
+                    arg.append('\\')
+        arg.append(c)
     
-    list_arg.append(arg)
+    list_arg.append(''.join(arg))
     return list_arg
 
 
