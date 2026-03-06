@@ -2,6 +2,7 @@ import sys, os, subprocess, readline, select
 from typing import Any, IO
 from itertools import filterfalse
 from collections import namedtuple
+from enum import Enum
 
 InputShell = namedtuple('InputShell', [
     'command', 
@@ -16,9 +17,15 @@ OutputShell = namedtuple('OutputShell', [
     'returncode' 
     ], 
     defaults=[b'', b'', 0])
+STDIN = 0
 STDOUT = 1
 STDERR = 2
 PIPE = 3
+
+
+class Type(Enum):
+    BUILTIN = 1
+    EXTERNAL = 2
 
 
 def find_path_command(paths: list[str], command: str) -> str | None:
@@ -62,13 +69,12 @@ def f_echo(input: InputShell) -> OutputShell:
 
 def f_type(input: InputShell) -> OutputShell:
     output = b''
-    if not input.args: return OutputShell()
 
     for arg in input.args:
         found = False
         output += bytes(f'{arg}', 'utf-8')
 
-        if arg in list(_commands_.keys()) + ['exit']:
+        if arg in _builtins_command_:
             found = True
             output += bytes(' is a shell builtin\n', 'utf-8')
         else:
@@ -199,42 +205,69 @@ def command_handler(input: InputShell) -> Any | None:
 
 
 def pipe(*commands: InputShell) -> None:
-    processes: list[subprocess.Popen] = []
+    processes: list[OutputShell | subprocess.Popen] = []
     prev_stdout = None
+    is_builtin = False
+
     for i, cmd in enumerate(commands):
         command = [cmd.command] + cmd.args[:]
-        stdout_pipe = None if i == len(commands) - 1 else subprocess.PIPE
-        proc = subprocess.Popen(
-            command,
-            stdin=prev_stdout,
-            stdout=stdout_pipe,
-            stderr=subprocess.PIPE
-        )
-        if prev_stdout:
-            prev_stdout.close()
         
-        prev_stdout = proc.stdout
-        processes.append(proc)
+        if cmd.command not in _builtins_command_:
+            std_pipe = None if i == len(commands) - 1 else subprocess.PIPE
+            proc = subprocess.Popen(
+                command,
+                stdin=prev_stdout,
+                stdout=std_pipe,
+                stderr=std_pipe
+            )
+            if isinstance(prev_stdout, IO):
+                prev_stdout.close()
+            
+            prev_stdout = proc.stdout
+            if processes and isinstance(processes[-1], OutputShell) and proc.stdin:
+                proc.stdin.write(processes[-1].stdout)
+                proc.stdin.close()
+            processes.append(proc)
+        else:
+            prev_stdout = subprocess.PIPE
+            if exec_command := command_handler(cmd):
+                processes.append(exec_command(cmd))
+            else:
+                msg = f'{cmd.command}: command not found'
+                processes.append(OutputShell(stderr=bytes(msg, encoding='utf-8')))
 
     proc = processes[-1]
-    fds = [file for file in [proc.stdout, proc.stderr] if file]
+    fds = []
+    if isinstance(proc, OutputShell):
+        sys.stdout.write(proc.stdout.decode())
+        sys.stdout.flush()
+        is_builtin = True
+    else:
+        fds = [file for file in [proc.stdout, proc.stderr] if file]
+    
     ready_read: list[IO]
     try:
+        if is_builtin:
+            raise Exception
         while fds:
             ready_read, _, _ = select.select(fds, [], [])
             for fd in ready_read:
                 while (out := fd.read(4096)):
+                    if is_builtin: continue
                     sys.stdout.buffer.write(out)
 
                 sys.stdout.buffer.flush()
                 fd.close()
                 fds.remove(fd)
-    except KeyboardInterrupt:
-        sys.stdout.write('\n')
+    except (KeyboardInterrupt, Exception) as error:
+        if isinstance(error, KeyboardInterrupt):
+            sys.stdout.write('\n')
         for proc in processes:
+            if isinstance(proc, OutputShell): continue
             proc.terminate()
     finally:
         for proc in processes:
+            if isinstance(proc, OutputShell): continue
             proc.wait()
 
 
