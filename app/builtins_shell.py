@@ -4,6 +4,10 @@ from typing import IO, Any
 from .types_shell import *
 
 
+def path_exists(path: str) -> bool:
+    return os.path.exists(path)
+
+
 def find_path_command(paths: list[str], command: str) -> str | None:
     for path in paths:
         path_command = path + '/' + command
@@ -42,7 +46,7 @@ def f_type(input: InputShell) -> OutputShell:
     return OutputShell(output)
 
 
-def f_pwd(input: InputShell) -> OutputShell:
+def f_pwd(input: InputShell | None = None) -> OutputShell:
     return OutputShell(bytes(os.getcwd() + '\n', 'utf-8'))
 
 

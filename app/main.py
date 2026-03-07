@@ -1,5 +1,5 @@
 import readline
-from .completion_shell import *
+from .completion_shell import completer, list_commands_match
 from .builtins_shell import run
 
 def main():
