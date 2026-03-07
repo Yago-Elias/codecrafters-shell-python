@@ -8,15 +8,12 @@ import readline, sys
 
 
 def list_path(path: str) -> tuple[str, list[str], str]:
-    dir = os.path.dirname(path)
-    prefix = os.path.basename(path)
-    # print(f'debug: path<{dir}/{prefix}>', flush=True)
-    if os.path.exists(dir) == False:
+    head, tail = os.path.split(path)
+    if os.path.exists(head) == False:
         return ('', [], '')
     
-    files = os.listdir(dir)
-    # print(f'debug: files<{files}>', flush=True)
-    return dir, files, prefix
+    files = os.listdir(head)
+    return head, files, tail
 
 
 def completer(text: str, state: int):
@@ -32,7 +29,6 @@ def completer(text: str, state: int):
             files = os.listdir()
         else:
             path, files, search = list_path(buffer[-1])
-            # print(path, files, search, flush=True)
         
         matches = [file for file in files if file.startswith(search)]
 
@@ -50,8 +46,18 @@ def list_commands_match(substituition, matches, longest) -> None:
     print()
     basenames = list(map(lambda bn: bn[:-1] if bn[-1] == '/' else bn, matches))
 
-    if os.path.commonpath(matches): 
-        basenames = list(map(os.path.basename, basenames))
+    # print(f'debug\nbn: {basenames}', flush=True)
+    basenames = list(map(os.path.split, basenames))
+    # path = './' if basenames[0][0] == '' else basenames[0][0]
+    # print(f'\npath: {path}', flush=True)
+    basenames = list(
+        map(
+            lambda bn: bn[1] + '/' if os.path.isdir(os.path.join(*bn)) else bn[1],
+            basenames
+            )
+        )
+
+    # print(f'debug\nbn: {basenames}', flush=True)
     
     print(' '.join(basenames), flush=True)
     sys.stdout.write('\033[K')
