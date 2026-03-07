@@ -46,18 +46,13 @@ def list_commands_match(substituition, matches, longest) -> None:
     print()
     basenames = list(map(lambda bn: bn[:-1] if bn[-1] == '/' else bn, matches))
 
-    # print(f'debug\nbn: {basenames}', flush=True)
     basenames = list(map(os.path.split, basenames))
-    # path = './' if basenames[0][0] == '' else basenames[0][0]
-    # print(f'\npath: {path}', flush=True)
     basenames = list(
         map(
             lambda bn: bn[1] + '/' if os.path.isdir(os.path.join(*bn)) else bn[1],
             basenames
             )
         )
-
-    # print(f'debug\nbn: {basenames}', flush=True)
     
     print(' '.join(basenames), flush=True)
     sys.stdout.write('\033[K')
