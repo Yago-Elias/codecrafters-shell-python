@@ -17,12 +17,13 @@ OutputShell = namedtuple('OutputShell', [
     ], 
     defaults=[b'', b'', 0])
 
-STDIN = 0
-STDOUT = 1
-STDERR = 2
-PIPE = 3
 
-
-class Type(Enum):
+class CommandType(Enum):
+    """Tipos de comandos suportados"""
     BUILTIN = 1
     EXTERNAL = 2
+
+
+__all__ = [
+    'InputShell', 'OutputShell', 'CommandType'
+]
