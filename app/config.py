@@ -2,7 +2,7 @@ import os
 from itertools import filterfalse
 
 # ============= COMANDOS BUILT-IN =============
-BUILTINS_COMMANDS = ['echo', 'type', 'pwd', 'exit', 'cd']
+BUILTINS_COMMANDS = set()
 
 # ============= CAMINHOS DO SISTEMA =============
 SYSTEM_PATHS = list(

@@ -15,12 +15,27 @@ from .utils import (
     pipe_execution,
 )
 
+# Dicionário de comandos
+COMMANDS_MAP = dict()
 
+BUILTINS_COMMANDS.add('exit')
+
+
+def register_command(function):
+    """Decorator para registrar os comandos do shell"""
+    global BUILTINS_COMMANDS
+    COMMANDS_MAP[function.__name__[2:]] = function
+    BUILTINS_COMMANDS.add(function.__name__[2:])
+    return function
+
+
+@register_command
 def f_echo(input: InputShell) -> OutputShell:
     """Implementa comando echo."""
     return OutputShell(bytes((' '.join(input.args) + '\n'), 'utf-8')) 
 
 
+@register_command
 def f_type(input: InputShell) -> OutputShell:
     """Implementa comando type - mostra tipo do comando."""
     output = b''
@@ -29,7 +44,7 @@ def f_type(input: InputShell) -> OutputShell:
         found = False
         output += bytes(f'{arg}', 'utf-8')
 
-        if arg in BUILTINS_COMMANDS:
+        if arg in get_builtins_commands():
             found = True
             output += bytes(' is a shell builtin\n', 'utf-8')
         else:
@@ -42,20 +57,13 @@ def f_type(input: InputShell) -> OutputShell:
     return OutputShell(output)
 
 
+@register_command
 def f_pwd(input: InputShell | None = None) -> OutputShell:
     """Implementa comando pwd - mostra diretório atual."""
     return OutputShell(bytes(os.getcwd() + '\n', 'utf-8'))
 
 
-def f_command(input: InputShell) -> OutputShell:
-    """Executa comando externo."""
-    command = [input.command]
-    if input.args:
-        command += input.args
-    result = subprocess.run(command, capture_output=True)
-    return OutputShell(result.stdout, result.stderr, result.returncode)
-
-
+@register_command
 def f_cd(input: InputShell) -> OutputShell:
     """Implementa comando cd - muda diretório."""
     if input.args:
@@ -65,24 +73,23 @@ def f_cd(input: InputShell) -> OutputShell:
         elif os.path.exists(path):
             os.chdir(path)
         else:
-            return OutputShell(bytes(f'cd: {path}: No such file or directory\n', 'utf-8'))
+            return OutputShell(stderr=bytes(f'cd: {path}: No such file or directory\n', 'utf-8'))
     return OutputShell()
 
 
-def f_history():
+@register_command
+def f_history(input: InputShell | None = None) -> OutputShell:
     """Implementa comando history (placeholder)."""
     pass
 
 
-# Dicionário de comandos
-COMMANDS_MAP = {
-    'echo': f_echo,
-    'type': f_type,
-    'pwd': f_pwd,
-    'external': f_command,
-    'cd': f_cd,
-    'history': f_history
-}
+def external_command(input: InputShell) -> OutputShell:
+    """Executa comando externo."""
+    command = input.command
+    if input.args:
+        command = [command] + input.args
+    result = subprocess.run(command, capture_output=True)
+    return OutputShell(result.stdout, result.stderr, result.returncode)
 
 
 def command_handler(input: InputShell):
@@ -100,9 +107,17 @@ def command_handler(input: InputShell):
 
     command = COMMANDS_MAP.get(input.command)
     if command is None and find_path_command(SYSTEM_PATHS, input.command):
-        command = COMMANDS_MAP.get('external')
+        command = external_command
     
     return command
+
+
+def get_builtins_commands() -> set:
+    return BUILTINS_COMMANDS
+
+
+def get_commands_map() -> dict:
+    return COMMANDS_MAP
 
 
 def run() -> None:
@@ -144,6 +159,6 @@ def run() -> None:
 __all__ = [
     'run',
     'command_handler',
-    'COMMANDS_MAP',
-    'BUILTINS_COMMANDS',
+    'get_commands_map',
+    'get_builtins_commands',
 ]

@@ -1,6 +1,6 @@
-import os, readline, sys
+import os, readline, sys, atexit
 
-from .builtins_shell import BUILTINS_COMMANDS
+from .builtins_shell import get_builtins_commands
 from .config import get_external_commands
 from .utils import input_handler
 
@@ -35,7 +35,7 @@ def completer(text: str, state: int):
         Próxima sugestão de completação ou None
     """
     search = text
-    matches = [cmd for cmd in BUILTINS_COMMANDS if cmd.startswith(text)]
+    matches = [cmd for cmd in get_builtins_commands() if cmd.startswith(text)]
     path = ''
     
     if not matches:
@@ -97,6 +97,23 @@ def configure_readline() -> None:
     readline.set_completion_display_matches_hook(list_commands_match)
     readline.set_completer_delims(' \t')
     readline.parse_and_bind('tab: complete')
+
+    history = os.path.join(os.path.expanduser('~'), '.shell_history')
+    if (os.path.isfile(history) == False):
+        with open(history, 'w'):
+            pass
+    
+    try:
+        readline.read_history_file(history)
+        readline.set_history_length(1000)
+    except FileNotFoundError:
+        pass
+
+    atexit.register(readline.write_history_file, history)
+
+
+def save_history():
+    pass
 
 
 __all__ = [
