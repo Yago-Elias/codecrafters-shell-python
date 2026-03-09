@@ -106,10 +106,10 @@ def configure_readline() -> None:
     try:
         readline.read_history_file(history)
         readline.set_history_length(1000)
-    except FileNotFoundError:
+    except FileNotFoundError, OSError:
         pass
-
-    atexit.register(readline.write_history_file, history)
+    else:
+        atexit.register(readline.write_history_file, history)
 
 
 def save_history():
