@@ -80,7 +80,15 @@ def f_cd(input: InputShell) -> OutputShell:
 @register_command
 def f_history(input: InputShell | None = None) -> OutputShell:
     """Implementa comando history (placeholder)."""
-    pass
+    history = os.path.join(os.path.expanduser('~'), '.shell_history')
+    data = ''
+
+    try:
+        with open(history, 'r') as file:
+            data = file.read()
+    except FileNotFoundError:
+        pass
+    return OutputShell(bytes(data, encoding='utf-8'))
 
 
 def external_command(input: InputShell) -> OutputShell:
