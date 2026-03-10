@@ -13,6 +13,7 @@ SYSTEM_PATHS = list(
 # Cache dos comandos externos (lazy loading)
 _external_commands = None
 
+
 def get_external_commands() -> set[str]:
     """
     Obtém o conjunto de comandos externos disponíveis no PATH.
@@ -38,3 +39,6 @@ STDIN = 0
 STDOUT = 1
 STDERR = 2
 PIPE = 3
+
+# ============= CONSTANTE DO TAMANHO DO HISTÓRICO =============
+HISTORY_LENGTH_MAX = 1000

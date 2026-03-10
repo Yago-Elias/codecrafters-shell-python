@@ -98,23 +98,6 @@ def configure_readline() -> None:
     readline.set_completer_delims(' \t')
     readline.parse_and_bind('tab: complete')
 
-    history = os.path.join(os.path.expanduser('~'), '.shell_history')
-    if (os.path.isfile(history) == False):
-        with open(history, 'w'):
-            pass
-    
-    try:
-        readline.read_history_file(history)
-        readline.set_history_length(1000)
-    except FileNotFoundError, OSError:
-        pass
-    else:
-        atexit.register(readline.write_history_file, history)
-
-
-def save_history():
-    pass
-
 
 __all__ = [
     'configure_readline',

@@ -14,6 +14,7 @@ from .utils import (
     input_shell,
     pipe_execution,
 )
+from .history import append_history
 
 # Dicionário de comandos
 COMMANDS_MAP = dict()
@@ -110,6 +111,11 @@ def command_handler(input: InputShell):
     Returns:
         Função do comando ou None se não encontrado
     """
+    if input.command == '':
+        return None
+    
+    append_history()
+
     if input.command == 'exit':
         exit()
 
@@ -136,8 +142,11 @@ def run() -> None:
             input_sh = input_shell()
         except KeyboardInterrupt:
             break
+        else:
+            _redirect, _sh = input_sh
+            if _sh[0].command == '':
+                continue
         
-        _redirect, _sh = input_sh
 
         if _redirect == PIPE:
             pipe_execution(_sh, COMMANDS_MAP, command_handler)

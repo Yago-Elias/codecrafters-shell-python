@@ -1,5 +1,6 @@
 import os, subprocess, select, sys
 from typing import IO
+from datetime import datetime
 
 from .types_shell import InputShell, OutputShell
 from .config import STDIN, STDOUT, STDERR, PIPE
@@ -218,3 +219,13 @@ def pipe_execution(commands: list[InputShell], builtin_commands: dict, fn_comman
         for proc in processes:
             if isinstance(proc, OutputShell): continue
             proc.wait()
+
+
+def log(text: str, level: str = 'info', sep: str = ' '):
+    """
+    Envia mensagem de log para o stderr
+    """
+    from sys import stderr
+    t = datetime.now()
+    t_exec = f'{t.hour}:{t.minute}:{t.second:0>2}'
+    print(f'{t_exec} [{level}]{sep}{text}', file=stderr, flush=True)
