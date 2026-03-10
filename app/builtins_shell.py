@@ -83,23 +83,33 @@ def f_history(input: InputShell | None = None) -> OutputShell:
     """Implementa comando history (placeholder)."""
     history = os.path.join(os.path.expanduser('~'), '.shell_history')
     data = ''
+    ind = number = 0
+    last = []
+
+    def enumerate_history(h: str) -> str:
+        nonlocal number
+        number += 1
+        return f'    {number}  {h}'
 
     try:
         with open(history, 'r') as file:
             data = file.read()
     except FileNotFoundError:
         pass
+    else:
+        last = data.split('\n')
+        last.pop()
+        data = list(map(enumerate_history, last))
 
     if input and input.args:
         try:
-            ind = int(input.args[0]) * -1
-        except ValueError:
+            ind = (int(input.args[0]) + 1) * -1
+            if abs(ind) > len(data):
+                raise Exception()
+        except (ValueError, Exception):
             return OutputShell(returncode=-1)
-        else:
-            last = data.split('\n')
-            last.pop()
-            data = '\n'.join(last[ind:]) + '\n'
-
+        
+    data = '\n'.join(data[ind:]) + '\n'
     return OutputShell(bytes(data, encoding='utf-8'))
 
 
