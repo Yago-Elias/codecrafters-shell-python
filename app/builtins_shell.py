@@ -112,6 +112,14 @@ def read_history(args: list[str] | None) -> OutputShell:
     return OutputShell()
 
 
+def write_history(args: list[str] | None) -> OutputShell:
+    namefile = get_arg(args, 1)
+    if not namefile: return OutputShell()
+    
+    readline.write_history_file(namefile)
+    return OutputShell()
+
+
 @register_command
 def f_history(input: InputShell) -> OutputShell:
     """Implementa comando history (placeholder)."""
@@ -127,6 +135,8 @@ def f_history(input: InputShell) -> OutputShell:
     match arg:
         case '-r':
             return read_history(input.args)
+        case '-w':
+            return write_history(input.args)
         case _:
             if data := read_file(HISTORY_PATH):
                 data = list(map(enumerate_history, data))
