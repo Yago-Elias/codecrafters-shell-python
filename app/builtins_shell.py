@@ -89,6 +89,17 @@ def f_history(input: InputShell | None = None) -> OutputShell:
             data = file.read()
     except FileNotFoundError:
         pass
+
+    if input and input.args:
+        try:
+            ind = int(input.args[0]) * -1
+        except ValueError:
+            return OutputShell(returncode=-1)
+        else:
+            last = data.split('\n')
+            last.pop()
+            data = '\n'.join(last[ind:]) + '\n'
+
     return OutputShell(bytes(data, encoding='utf-8'))
 
 
