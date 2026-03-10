@@ -1,26 +1,22 @@
 import os, readline
 
-from .config import HISTORY_LENGTH_MAX
+from .config import HISTORY_LENGTH_MAX, HISTORY_PATH
 
 
 def initialize_history() -> None:
-    history = os.path.join(os.path.expanduser('~'), '.shell_history')
-
     # if (os.path.isfile(history) == False):
-    open(history, 'w').close()
+    open(HISTORY_PATH, 'w').close()
     
     try:
-        readline.read_history_file(history)
+        readline.read_history_file(HISTORY_PATH)
         readline.set_history_length(HISTORY_LENGTH_MAX)
     except (FileNotFoundError, OSError):
         pass
 
 
-def append_history() -> None:
-    history = os.path.join(os.path.expanduser('~'), '.shell_history')
-    
-    if (os.path.isfile(history)):
-        readline.append_history_file(1, history)
+def append_history(num_itens: int=1) -> None:
+    if (os.path.isfile(HISTORY_PATH)):
+        readline.append_history_file(num_itens, HISTORY_PATH)
 
 
 __all__ = [

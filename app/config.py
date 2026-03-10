@@ -40,5 +40,18 @@ STDOUT = 1
 STDERR = 2
 PIPE = 3
 
-# ============= CONSTANTE DO TAMANHO DO HISTÓRICO =============
+# ============= CONSTANTEs DO HISTÓRICO =============
 HISTORY_LENGTH_MAX = 1000
+HISTORY_PATH = os.path.join(os.path.expanduser('~'), '.shell_history')
+
+__all__ = [
+    'BUILTINS_COMMANDS',
+    'SYSTEM_PATHS',
+    'get_external_commands',
+    'STDIN',
+    'STDOUT',
+    'STDERR',
+    'PIPE',
+    'HISTORY_LENGTH_MAX',
+    'HISTORY_PATH',
+]
