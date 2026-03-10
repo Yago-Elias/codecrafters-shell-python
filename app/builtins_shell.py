@@ -103,7 +103,7 @@ def f_history(input: InputShell | None = None) -> OutputShell:
 
     if input and input.args:
         try:
-            ind = (int(input.args[0]) + 1) * -1
+            ind = int(input.args[0]) * -1
             if abs(ind) > len(data):
                 raise Exception()
         except (ValueError, Exception):

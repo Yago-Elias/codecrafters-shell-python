@@ -6,8 +6,8 @@ from .config import HISTORY_LENGTH_MAX
 def initialize_history() -> None:
     history = os.path.join(os.path.expanduser('~'), '.shell_history')
 
-    if (os.path.isfile(history) == False):
-        open(history, 'w').close()
+    # if (os.path.isfile(history) == False):
+    open(history, 'w').close()
     
     try:
         readline.read_history_file(history)
