@@ -227,5 +227,5 @@ def log(text: str, level: str = 'info', sep: str = ' '):
     """
     from sys import stderr
     t = datetime.now()
-    t_exec = f'{t.hour}:{t.minute}:{t.second:0>2}'
+    t_exec = f'{t.hour:0>2}:{t.minute:0>2}:{t.second:0>2}'
     print(f'{t_exec} [{level}]{sep}{text}', file=stderr, flush=True)

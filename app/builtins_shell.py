@@ -1,4 +1,5 @@
 import os, subprocess, readline
+from typing import Literal
 
 from .types_shell import InputShell, OutputShell
 from .config import (
@@ -79,7 +80,7 @@ def f_cd(input: InputShell) -> OutputShell:
     return OutputShell()
 
 
-def read_file(filename: str):
+def read_file(filename: str) -> list[str] | Literal['']:
     try:
         with open(filename) as fn:
             data = fn.read()
@@ -90,11 +91,31 @@ def read_file(filename: str):
     return data
 
 
+def get_arg(args: list[str] | None, index: int=0) -> None | str:
+    try:
+        return args[index] if args else None
+    except IndexError:
+        return None
+
+
+def read_history(args: list[str] | None) -> OutputShell:
+    namefile = get_arg(args, 1)
+    if not namefile: return OutputShell()
+
+    data = read_file(namefile)
+    if not data: return OutputShell()
+
+    for d in data:
+        readline.add_history(d)
+    
+    append_history(len(data))
+    return OutputShell()
+
+
 @register_command
-def f_history(input: InputShell | None = None) -> OutputShell:
+def f_history(input: InputShell) -> OutputShell:
     """Implementa comando history (placeholder)."""
-    data_h = ''
-    data_f = ''
+    data = ''
     ind = number = 0
 
     def enumerate_history(h: str) -> str:
@@ -102,27 +123,21 @@ def f_history(input: InputShell | None = None) -> OutputShell:
         number += 1
         return f'    {number}  {h}'
 
-    if input and input.args and input.args[0] == '-r':
-        if data_f := read_file(input.args[1]):
-            for d in data_f:
-                readline.add_history(d)
-        
-            append_history(len(data_f))
-        return OutputShell()
-        
-    if data_h := read_file(HISTORY_PATH):
-        data_h = list(map(enumerate_history, data_h))
-
-    if input and input.args:
-        try:
-            ind = int(input.args[0]) * -1
-            if abs(ind) > len(data_h):
-                raise Exception()
-        except (ValueError, Exception):
-            return OutputShell(returncode=-1)
-        
-    data_h = '\n'.join(data_h[ind:]) + '\n'
-    return OutputShell(bytes(data_h, encoding='utf-8'))
+    arg = get_arg(input.args)
+    match arg:
+        case '-r':
+            return read_history(input.args)
+        case _:
+            if data := read_file(HISTORY_PATH):
+                data = list(map(enumerate_history, data))
+            if arg:
+                if not arg.isnumeric():
+                    return OutputShell()
+                ind = int(arg) * -1
+                ind = 0 if abs(ind) > len(data) else ind
+            data = '\n'.join(data[ind:]) + '\n'
+                
+    return OutputShell(bytes(data, encoding='utf-8'))
 
 
 def external_command(input: InputShell) -> OutputShell:
@@ -203,7 +218,7 @@ def run() -> None:
                 print(f'{_sh[0].command}: command not found')
                 continue
             output: OutputShell = exec_command(_sh[0])
-            print((output.stdout + output.stderr).decode(), end='')
+            print((output.stdout + output.stderr).decode(), end='', flush=True)
 
 
 __all__ = [
