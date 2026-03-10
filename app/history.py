@@ -14,9 +14,11 @@ def initialize_history() -> None:
         pass
 
 
-def append_history(num_itens: int=1) -> None:
-    if (os.path.isfile(HISTORY_PATH)):
+def append_history(num_itens: int=1, filename: str | None = None) -> None:
+    if filename is None and os.path.isfile(HISTORY_PATH):
         readline.append_history_file(num_itens, HISTORY_PATH)
+    elif filename and os.path.isfile(filename):
+        readline.append_history_file(num_itens, filename)
 
 
 __all__ = [

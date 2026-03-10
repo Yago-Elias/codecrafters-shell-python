@@ -8,7 +8,8 @@ from .config import (
     STDOUT,
     STDERR,
     PIPE,
-    HISTORY_PATH
+    HISTORY_PATH,
+    HIST_SIZE_LAST_ADD
 )
 from .utils import (
     find_path_command,
@@ -99,10 +100,10 @@ def get_arg(args: list[str] | None, index: int=0) -> None | str:
 
 
 def read_history(args: list[str] | None) -> OutputShell:
-    namefile = get_arg(args, 1)
-    if not namefile: return OutputShell()
+    filename = get_arg(args, 1)
+    if not filename: return OutputShell()
 
-    data = read_file(namefile)
+    data = read_file(filename)
     if not data: return OutputShell()
 
     for d in data:
@@ -113,10 +114,28 @@ def read_history(args: list[str] | None) -> OutputShell:
 
 
 def write_history(args: list[str] | None) -> OutputShell:
-    namefile = get_arg(args, 1)
-    if not namefile: return OutputShell()
-    
-    readline.write_history_file(namefile)
+    filename = get_arg(args, 1)
+    if not filename: return OutputShell()
+
+    readline.write_history_file(filename)
+    return OutputShell()
+
+
+def add_history(args: list[str] | None) -> OutputShell:
+    filename = get_arg(args, 1)
+    if not filename: return OutputShell()
+    hist_len = readline.get_current_history_length()
+    global HIST_SIZE_LAST_ADD
+
+    if not os.path.isfile(filename):
+        open(filename, 'w').close()
+
+    if HIST_SIZE_LAST_ADD == 0:
+        append_history(hist_len, filename)
+    else:
+        append_history(hist_len - HIST_SIZE_LAST_ADD, filename)
+    HIST_SIZE_LAST_ADD = hist_len
+
     return OutputShell()
 
 
@@ -137,6 +156,8 @@ def f_history(input: InputShell) -> OutputShell:
             return read_history(input.args)
         case '-w':
             return write_history(input.args)
+        case '-a':
+            return add_history(input.args)
         case _:
             if data := read_file(HISTORY_PATH):
                 data = list(map(enumerate_history, data))
