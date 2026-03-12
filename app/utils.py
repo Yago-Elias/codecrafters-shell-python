@@ -1,4 +1,4 @@
-import os, subprocess, select, sys
+import os, subprocess, select, sys, readline
 from typing import IO
 from datetime import datetime
 
@@ -103,6 +103,7 @@ def input_handler(args: str) -> list[str]:
     Returns:
         Lista de argumentos processados
     """
+    readline.add_history(args)
     arg = []
     list_arg = []
     single_quotes = double_quotes = False

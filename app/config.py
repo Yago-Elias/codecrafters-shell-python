@@ -54,7 +54,6 @@ __all__ = [
     'STDERR',
     'PIPE',
     'HISTORY_LENGTH_MAX',
-    'HISTORY_PATH',
+    'HISTFILE',
     'HIST_SIZE_LAST_ADD',
-    'get_env_hist_file'
 ]
