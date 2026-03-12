@@ -81,6 +81,13 @@ def f_cd(input: InputShell) -> OutputShell:
     return OutputShell()
 
 
+def get_arg(args: list[str] | None, index: int=0) -> None | str:
+    try:
+        return args[index] if args else None
+    except IndexError:
+        return None
+
+
 def read_file(filename: str | None) -> list[str] | Literal['']:
     if filename is None: return ''
     try:
@@ -90,16 +97,7 @@ def read_file(filename: str | None) -> list[str] | Literal['']:
         return ''
     data = data.split('\n')
     data.pop()
-    # from .utils import log
-    # log(f'<data read_file> {data!r}')
     return data
-
-
-def get_arg(args: list[str] | None, index: int=0) -> None | str:
-    try:
-        return args[index] if args else None
-    except IndexError:
-        return None
 
 
 def read_history(args: list[str] | None) -> OutputShell:
@@ -108,15 +106,21 @@ def read_history(args: list[str] | None) -> OutputShell:
 
     data = read_file(filename)
     if not data: return OutputShell()
-    count = 0
 
     for d in data:
-        if d:
-            readline.add_history(d)
-            count += 1
+        readline.add_history(d)
     
-    append_history(count)
+    append_history(len(data))
     return OutputShell()
+
+
+def read_rl():
+    hist_len = readline.get_current_history_length()
+    data = []
+    for index in range(1, hist_len+1):
+        data.append(readline.get_history_item(index))
+    
+    return data
 
 
 def write_history(args: list[str] | None) -> OutputShell:
@@ -150,18 +154,13 @@ def f_history(input: InputShell) -> OutputShell:
     """Implementa comando history (placeholder)."""
     data = ''
     ind = number = 0
-    from .utils import log
 
     def enumerate_history(h: str) -> str:
         nonlocal number
         number += 1
         return f'    {number}  {h}'
-    
-    from .utils import log
 
     arg = get_arg(input.args)
-    # f = get_arg(input.args, 1)
-    # log(f'<command> history {arg if arg else ''} {f if f else ''}')
     match arg:
         case '-r':
             return read_history(input.args)
@@ -170,18 +169,14 @@ def f_history(input: InputShell) -> OutputShell:
         case '-a':
             return add_history(input.args)
         case _:
-            # log(f'<command> history')
-            # log(f'<HISTFILE> {get_env_hist_file()}')
-            if data := read_file(HISTFILE):
+            if data := read_rl():
                 data = list(map(enumerate_history, data))
-                # log(f'<data> {data!r}')
             if arg:
                 if not arg.isnumeric():
                     return OutputShell()
                 ind = int(arg) * -1
                 ind = 0 if abs(ind) > len(data) else ind
             data = '\n'.join(data[ind:]) + '\n'
-            
     return OutputShell(bytes(data, encoding='utf-8'))
 
 
