@@ -7,7 +7,7 @@ def initialize_history() -> None:
     if HISTFILE is None: return
     # if os.path.isfile(HISTFILE):
     #     open(HISTFILE, 'w').close()
-    
+    readline.set_auto_history(False)
     try:
         readline.read_history_file(HISTFILE)
         readline.set_history_length(HISTORY_LENGTH_MAX)
