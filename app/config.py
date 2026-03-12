@@ -41,7 +41,7 @@ STDERR = 2
 PIPE = 3
 
 # ============= CONSTANTEs DO HISTÓRICO =============
-HISTORY_PATH = os.path.join(os.path.expanduser('~'), '.shell_history')
+HISTFILE = os.getenv('HISTFILE')
 HISTORY_LENGTH_MAX = 1000
 HIST_SIZE_LAST_ADD = 0
 
@@ -56,4 +56,5 @@ __all__ = [
     'HISTORY_LENGTH_MAX',
     'HISTORY_PATH',
     'HIST_SIZE_LAST_ADD',
+    'get_env_hist_file'
 ]
